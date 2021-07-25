@@ -1,4 +1,5 @@
 defmodule AppWeb.IntegrationCase do
+  @moduledoc false
   use ExUnit.CaseTemplate
 
   using do

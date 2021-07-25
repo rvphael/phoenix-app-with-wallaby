@@ -1,0 +1,77 @@
+name: Continuous Integration
+
+on: push
+
+# This workflow will build and test a Phoenix application that uses
+# PostgreSQL as a database. Will also cache dependencies and build
+# artifacts to speed up the build.
+jobs:
+  build:
+
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+    services:
+      db:
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        image: postgres:11
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Recover dependency cache
+        uses: actions/cache@v2
+        id: deps_cache
+        with:
+          path: deps
+          key: ${{ runner.OS }}-deps-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.OS }}-deps-${{ env.cache-name }}-
+            ${{ runner.OS }}-deps-
+            ${{ runner.OS }}-
+
+      - name: Recover build cache
+        uses: actions/cache@v2
+        with:
+          path: _build
+          key: ${{ runner.OS }}-build-${{ env.cache-name }}
+          restore-keys: |
+            ${{ runner.OS }}-build-
+            ${{ runner.OS }}-
+
+      - name: Setup Elixir
+        uses: erlef/setup-elixir@885971a72ed1f9240973bd92ab57af8c1aa68f24
+        with:
+          otp-version: 24.0
+          elixir-version: 1.12.2
+
+      - name: Setup chromedriver for Wallaby
+        uses: nanasess/setup-chromedriver@master
+
+      - name: Install Dependencies
+        run: mix deps.get
+      - run: mix compile
+      - run: mix ecto.reset
+      - run: npm install
+        working-directory: ./assets
+      - run: npm run deploy --prefix ./assets
+
+      - name: Check linting
+        run: mix credo --strict
+
+      - name: Run tests
+        run: |
+          MIX_ENV=test ecto.reset
+          MIX_ENV=test mix test --trace
