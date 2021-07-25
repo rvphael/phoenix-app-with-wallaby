@@ -73,5 +73,5 @@ jobs:
 
       - name: Run tests
         run: |
-          MIX_ENV=test ecto.reset
+          MIX_ENV=test mix ecto.reset
           MIX_ENV=test mix test --trace
